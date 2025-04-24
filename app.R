@@ -38,7 +38,8 @@ ui <- fluidPage(
       radioButtons("type", "Type",
                    c(Occurrences = "occurrences", Collections = "collections", 
                      Range = "range", 
-                     Richness = "richness", Diversification = "rates")),
+                     Richness = "richness", Diversification = "rates"),
+                   selected = "range"),
       # Input: Taxonomic rank ----
       radioButtons("rank", "Taxonomic rank",
                    c(Species = "species", Genus = "genus", Family = "family"), 
@@ -110,15 +111,13 @@ server <- function(input, output) {
                    size = 2, hjust = 0.5, colour = "black", fontface = "bold",
                    fill = alpha('white', 0.5)) +
         scale_x_reverse() +
-        theme_bw(base_size = 20) +
         facet_wrap(~group_id) +
         theme(legend.position = "none",
               legend.title = element_blank(),
               axis.text = element_text(colour = "black"),
               axis.text.y = element_blank(),
               axis.ticks.y = element_blank(),
-              axis.title.y = element_blank(),
-              panel.grid = element_blank())
+              axis.title.y = element_blank())
     } else {
       p <- ggplot(data = data(), aes(x = mid_ma, y = value)) +
         geom_point() +
