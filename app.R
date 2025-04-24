@@ -36,8 +36,9 @@ ui <- fluidPage(
 
       # Input: Analyses type ----
       radioButtons("type", "Type",
-                   c(Sampling = "sampling", Range = "range", 
-                     Diversity = "richness", Diversification = "rates")),
+                   c(Occurrences = "occurrences", Collections = "collections", 
+                     Range = "range", 
+                     Richness = "richness", Diversification = "rates")),
       # Input: Taxonomic rank ----
       radioButtons("rank", "Taxonomic rank",
                    c(Species = "species", Genus = "genus", Family = "family"), 
@@ -74,18 +75,32 @@ server <- function(input, output) {
       filter_rank(rank = input$rank) |>
       filter_family(fam = input$family) |>
       group_data(group = input$group)
-    do.call(rbind, tmp)
+    # Analyses
+    tmp <- lapply(names(tmp), function(x) {
+      out <- tmp[[x]]
+      if (input$type == "occurrences") {
+        out <- get_occurrence_counts(df)
+      }
+      if (input$type == "collections") {
+        out <- get_collection_counts(df)
+      }
+      if (input$type == "richness") {
+        out <- get_richness_counts(df, rank = input$rank)
+      }
+      out$group_id <- x
+      out
+    })
+    do.call(rbind.data.frame, tmp)
   })
   # Reactive: Plot rendering ----  
   output$plot <- renderPlot({
     
-    p <- ggplot(data = data(), aes(x = max_ma, y = min_ma, 
-                                   colour = group_id)) +
+    p <- ggplot(data = data(), aes(x = mid_ma, y = value)) +
       geom_point() +
       theme(legend.position = "none")
     
     if (input$group != ".") {
-      p <- p + facet_wrap(paste0("~", input$group), scales = "free_y")
+      p <- p + facet_wrap(paste0("~group_id"), scales = "free_y")
     }
     p
     

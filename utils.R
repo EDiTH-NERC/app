@@ -44,27 +44,35 @@ group_data <- function(df, group = ".") {
 }
 
 # Analyses --------------------------------------------------------------
-get_sampling_counts <- function(df, bins) {
+get_occurrence_counts <- function(df) {
   # Get occurrence counts
-  n_occ <- bins
-  n_occ$value <- NA
-  n_occ$type <- "Occurrences"
+  bins <- readRDS("stages.RDS")
+  bins$value <- NA
   for (i in 1:nrow(bins)) {
-    n_occ$value[i] <- length(unique(df[which(df[, "mid_ma"] == bins[i, "mid_ma"]), 
-                                       "occurrence_no"]))
+    bins$value[i] <- length(unique(df[which(df[, "mid_ma"] == bins[i, "mid_ma"]), 
+                                        "occurrence_no"]))
   }
+  bins
+}
+get_collection_counts <- function(df) {
   # Get collection counts
-  n_coll <- bins
-  n_coll$value <- NA
-  n_coll$type <- "Collections"
+  bins <- readRDS("stages.RDS")
+  bins$value <- NA
   for (i in 1:nrow(bins)) {
-    n_coll$value[i] <- length(unique(df[which(df[, "mid_ma"] == bins[i, "mid_ma"]), 
-                                        "collection_no"]))
+    bins$value[i] <- length(unique(df[which(df[, "mid_ma"] == bins[i, "mid_ma"]), 
+                                      "collection_no"]))
   }
-  # Bind data
-  df <- rbind.data.frame(n_occ, n_coll)
-  df$analyses <- "sampling"
-  df
+  bins
+}
+get_richness_counts <- function(df, rank) {
+  # Get collection counts
+  bins <- readRDS("stages.RDS")
+  bins$value <- NA
+  for (i in 1:nrow(bins)) {
+    bins$value[i] <- length(unique(df[which(df[, "mid_ma"] == bins[i, "mid_ma"]), 
+                                      rank]))
+  }
+  bins
 }
 
 get_temporal_ranges <- function (df, name = "genus", group = ".") {
