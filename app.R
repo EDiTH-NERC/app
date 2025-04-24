@@ -111,6 +111,7 @@ server <- function(input, output) {
                    fill = alpha('white', 0.5)) +
         scale_x_reverse() +
         theme_bw(base_size = 20) +
+        facet_wrap(~group_id) +
         theme(legend.position = "none",
               legend.title = element_blank(),
               axis.text = element_text(colour = "black"),
@@ -121,14 +122,10 @@ server <- function(input, output) {
     } else {
       p <- ggplot(data = data(), aes(x = mid_ma, y = value)) +
         geom_point() +
+        facet_wrap(~group_id) +
         theme(legend.position = "none")
     }
-    # Facet?
-    if (input$group != ".") {
-      p <- p + facet_wrap(paste0("~group_id"), scales = "free_y")
-    }
     p
-    
   })
 }
 # Create app ------------------------------------------------------------
