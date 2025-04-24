@@ -65,7 +65,7 @@ get_collection_counts <- function(df) {
   bins
 }
 get_richness_counts <- function(df, rank) {
-  # Get collection counts
+  # Get taxonomic counts
   bins <- readRDS("stages.RDS")
   bins$value <- NA
   for (i in 1:nrow(bins)) {
@@ -74,63 +74,18 @@ get_richness_counts <- function(df, rank) {
   }
   bins
 }
-
-get_temporal_ranges <- function (df, name = "genus", group = ".") {
-  # Get plotting data
-  if (group == ".") {
-    df <- tax_range_time(occdf = df, name = name)
-  } else {
-    df <- group_apply(occdf = df, group = group, 
-                      fun = tax_range_time, name = name)
+get_temporal_ranges <- function (df, rank) {
+  # Get ranges counts
+  out <- data.frame(taxon = unique(df[, rank]), max_ma = NA, min_ma = NA)
+  for (i in 1:nrow(out)) {
+    vec <- which(df[, rank] == out$taxon[i])
+    out$max_ma[i] <- max(df[vec, "max_ma"])
+    out$min_ma[i] <- min(df[vec, "min_ma"])
   }
-  df$taxon_id <- 1:nrow(df)
-  df$taxon_id <- factor(x = df$taxon_id, levels = df$taxon_id)
-  # Plot parameters
-  n <- nrow(df)
-  point_size <- 8 / sqrt(n) + 1
-  line_size <- 5 / sqrt(n)
-  text_size <- (10 / sqrt(n)) + 1
-  if (name == "family") {ff <- "bold"} else {ff <- "bold.italic"}
-  # Plot
-  p <- ggplot(data = df, aes(y = taxon_id, xmin = min_ma, xmax = max_ma,
-                             colour = taxon_id)) +
-    geom_linerange(size = line_size) +
-    geom_point(data = df, aes(y = taxon_id, x = max_ma), size = point_size) +
-    geom_point(data = df, aes(y = taxon_id, x = min_ma), size = point_size) +
-    geom_label(data = df, aes(y = taxon_id, x = (max_ma + min_ma) / 2, label = taxon), 
-               size = text_size, hjust = 0.5, colour = "black", fontface = ff,
-               fill = alpha('white', 0.5)) +
-    scale_x_reverse(expand = expansion(0, 0)) +
-    scale_y_discrete(expand = expansion(add = 1)) +
-    xlab("Time (Ma)") +
-    theme_bw(base_size = 20) +
-    theme(legend.position = "none",
-          legend.title = element_blank(),
-          axis.text = element_text(colour = "black"),
-          axis.text.y = element_blank(),
-          axis.ticks.y = element_blank(),
-          axis.title.y = element_blank(),
-          panel.grid = element_blank()) +
-    coord_geo(pos = list("bottom", "bottom"),
-              dat = list("stages", "periods"), 
-              height = list(unit(1.5, "line"), unit(1.5, "line")), 
-              size = "auto", abbrv = TRUE, expand = TRUE)
-  if (group != ".") {
-    p <- p + facet_wrap(paste0("~", group), scales = "free_y")
-  }
-  return(p)
+  out$mid_ma <- (out$max_ma + out$min_ma) / 2
+  out
 }
 
-get_raw_counts <- function (df, bins, rank) {
-  # Get occurrence counts
-  bins$value <- NA
-  bins$type <- "Counts"
-  for (i in 1:nrow(bins)) {
-    bins$value[i] <- length(unique(df[which(df[, "mid_ma"] == bins[i, "mid_ma"]), rank]))
-  }
-  bins$analyses <- "counts"
-  bins
-}
 get_diversification_rates <- function () {}
 
 

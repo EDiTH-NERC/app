@@ -78,14 +78,17 @@ server <- function(input, output) {
     # Analyses
     tmp <- lapply(names(tmp), function(x) {
       out <- tmp[[x]]
+      if (input$type == "range") {
+        out <- get_temporal_ranges(df = out, rank = input$rank)
+      }
       if (input$type == "occurrences") {
-        out <- get_occurrence_counts(out)
+        out <- get_occurrence_counts(df = out)
       }
       if (input$type == "collections") {
-        out <- get_collection_counts(out)
+        out <- get_collection_counts(df = out)
       }
       if (input$type == "richness") {
-        out <- get_richness_counts(out, rank = input$rank)
+        out <- get_richness_counts(df = out, rank = input$rank)
       }
       out$group_id <- x
       out
@@ -95,10 +98,32 @@ server <- function(input, output) {
   # Reactive: Plot rendering ----  
   output$plot <- renderPlot({
     
-    p <- ggplot(data = data(), aes(x = mid_ma, y = value)) +
-      geom_point() +
-      theme(legend.position = "none")
-    
+    if (input$type == "range") {
+      out <- data()
+      out <- out[order(out$max_ma, decreasing = FALSE), ]
+      out$taxon_id <- 1:nrow(out)
+      p <- ggplot(data = out, aes(y = taxon_id, xmin = min_ma, xmax = max_ma)) +
+        geom_linerange() +
+        geom_point(aes(y = taxon_id, x = max_ma), size = 2) +
+        geom_point(aes(y = taxon_id, x = min_ma), size = 2) +
+        geom_label(aes(y = taxon_id, x = (max_ma + min_ma) / 2, label = taxon), 
+                   size = 2, hjust = 0.5, colour = "black", fontface = "bold",
+                   fill = alpha('white', 0.5)) +
+        scale_x_reverse() +
+        theme_bw(base_size = 20) +
+        theme(legend.position = "none",
+              legend.title = element_blank(),
+              axis.text = element_text(colour = "black"),
+              axis.text.y = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.title.y = element_blank(),
+              panel.grid = element_blank())
+    } else {
+      p <- ggplot(data = data(), aes(x = mid_ma, y = value)) +
+        geom_point() +
+        theme(legend.position = "none")
+    }
+    # Facet?
     if (input$group != ".") {
       p <- p + facet_wrap(paste0("~group_id"), scales = "free_y")
     }
