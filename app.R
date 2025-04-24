@@ -22,17 +22,30 @@ families <- sort(unique(df$family))
 regions <- sort(unique(df$region))
 groups <- c(None = ".", Family = "family", Genus = "genus", Country = "cc")
 
+# Plot defaults ---------------------------------------------------------
+# Labs
+xlab <- c("Time (Ma)")
+# Theme
+custom_theme <- theme_bw() +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        axis.text = element_text(colour = "black"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank())
+
 # UI --------------------------------------------------------------------
 ui <- fluidPage(
-
-  # App title ----
-  titlePanel("Hello Shiny!"),
-
+  tags$style(HTML("
+    #plot {
+      height: 100vh !important; /* vh = viewport height */
+    }
+  ")),
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
 
     # Sidebar panel for inputs ----
-    sidebarPanel(
+    sidebarPanel(width = 2,
 
       # Input: Analyses type ----
       radioButtons("type", "Type",
@@ -58,7 +71,7 @@ ui <- fluidPage(
     ),
 
     # Main panel for displaying outputs ----
-    mainPanel(
+    mainPanel(width = 10,
 
       # Output: Plot ----
       plotOutput(outputId = "plot")
@@ -81,14 +94,11 @@ server <- function(input, output) {
       out <- tmp[[x]]
       if (input$type == "range") {
         out <- get_temporal_ranges(df = out, rank = input$rank)
-      }
-      if (input$type == "occurrences") {
+      } else if (input$type == "occurrences") {
         out <- get_occurrence_counts(df = out)
-      }
-      if (input$type == "collections") {
+      } else if (input$type == "collections") {
         out <- get_collection_counts(df = out)
-      }
-      if (input$type == "richness") {
+      } else if (input$type == "richness") {
         out <- get_richness_counts(df = out, rank = input$rank)
       }
       out$group_id <- x
@@ -98,31 +108,33 @@ server <- function(input, output) {
   })
   # Reactive: Plot rendering ----  
   output$plot <- renderPlot({
+    out <- data()
+    n <- nrow(out)
+    point_size <- 8 / sqrt(n) + 1
+    line_size <- 5 / sqrt(n)
+    text_size <- (10 / sqrt(n)) + 1
+    strip_size <- text_size * 5
     
     if (input$type == "range") {
-      out <- data()
       out <- out[order(out$max_ma, decreasing = FALSE), ]
       out$taxon_id <- 1:nrow(out)
-      p <- ggplot(data = out, aes(y = taxon_id, xmin = min_ma, xmax = max_ma)) +
-        geom_linerange() +
-        geom_point(aes(y = taxon_id, x = max_ma), size = 2) +
-        geom_point(aes(y = taxon_id, x = min_ma), size = 2) +
-        geom_label(aes(y = taxon_id, x = (max_ma + min_ma) / 2, label = taxon), 
-                   size = 2, hjust = 0.5, colour = "black", fontface = "bold",
-                   fill = alpha('white', 0.5)) +
-        scale_x_reverse() +
-        facet_wrap(~group_id) +
-        theme(legend.position = "none",
-              legend.title = element_blank(),
-              axis.text = element_text(colour = "black"),
-              axis.text.y = element_blank(),
-              axis.ticks.y = element_blank(),
-              axis.title.y = element_blank())
+      out$taxon <- factor(x = out$taxon, levels = out$taxon)
+      p <- ggplot(data = out, aes(y = taxon, xmin = min_ma, xmax = max_ma)) +
+        geom_linerange(size = line_size) +
+        geom_point(aes(y = taxon, x = max_ma), size = point_size) +
+        geom_point(aes(y = taxon, x = min_ma), size = point_size) +
+        geom_text(aes(y = taxon, x = max_ma, label = taxon), 
+                  size = text_size, hjust = 1, nudge_x = -0.25,
+                  colour = "black", fontface = "bold") +
+        scale_x_reverse(name = xlab) +
+        facet_wrap(~group_id, scales = "free_y") +
+        custom_theme +
+        theme(strip.text = element_text(size = strip_size, margin = margin()))
     } else {
       p <- ggplot(data = data(), aes(x = mid_ma, y = value)) +
         geom_point() +
         facet_wrap(~group_id) +
-        theme(legend.position = "none")
+        custom_theme
     }
     p
   })
