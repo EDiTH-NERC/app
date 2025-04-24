@@ -69,17 +69,20 @@ ui <- fluidPage(
 server <- function(input, output) {
   # Reactive: Data filtering and analyses ----
   data <- reactive({
-    df <- df |>
+    tmp <- df |>
       filter_region(region = input$region) |>
       filter_rank(rank = input$rank) |>
-      filter_family(fam = input$family)
-    df
+      filter_family(fam = input$family) |>
+      group_data(group = input$group)
+    do.call(rbind, tmp)
   })
   # Reactive: Plot rendering ----  
   output$plot <- renderPlot({
     
-    p <- ggplot(data = data(), aes(x = max_ma, y = min_ma)) +
-      geom_point()
+    p <- ggplot(data = data(), aes(x = max_ma, y = min_ma, 
+                                   colour = group_id)) +
+      geom_point() +
+      theme(legend.position = "none")
     
     if (input$group != ".") {
       p <- p + facet_wrap(paste0("~", input$group), scales = "free_y")

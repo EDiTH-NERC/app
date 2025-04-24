@@ -36,11 +36,11 @@ filter_family <- function(df, fam = ".") {
 # Group data ------------------------------------------------------------
 group_data <- function(df, group = ".") {
   if (group == ".") {
-    df <- list(all = df)
+    df$group_id <- "."
   } else {
-    df <- split(x = df, f = df[, group])
+    df$group_id <- df[, group]
   }
-  df
+  split(x = df, f = df$group_id)
 }
 
 # Analyses --------------------------------------------------------------
