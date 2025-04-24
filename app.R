@@ -1,6 +1,27 @@
+# Header ----------------------------------------------------------------
+# Project: app
+# File name: app.R
+# Last updated: 2025-04-24
+# Author: Lewis A. Jones
+# Email: LewisA.Jones@outlook.com
+# Repository: https://github.com/LewisAJones/app
+
+# Load libraries --------------------------------------------------------
 library(shiny)
 
-# Define UI for app that draws a histogram ----
+# Load functions --------------------------------------------------------
+source("utils.R")
+
+# Load data -------------------------------------------------------------
+df <- readRDS("PBDB.RDS")
+bins <- readRDS("stages.RDS")
+
+# Input options ---------------------------------------------------------
+families <- sort(unique(df$family))
+regions <- sort(unique(df$region))
+groups <- c(None = ".", Family = "family", Genus = "genus", Country = "cc")
+
+# UI --------------------------------------------------------------------
 ui <- fluidPage(
 
   # App title ----
@@ -12,48 +33,54 @@ ui <- fluidPage(
     # Sidebar panel for inputs ----
     sidebarPanel(
 
-      # Input: Slider for the number of bins ----
-      sliderInput(inputId = "bins",
-                  label = "Number of bins:",
-                  min = 1,
-                  max = 50,
-                  value = 30)
-
+      # Input: Analyses type ----
+      radioButtons("type", "Type",
+                   c(Sampling = "sampling", Range = "range", 
+                     Diversity = "richness", Diversification = "rates")),
+      # Input: Taxonomic rank ----
+      radioButtons("rank", "Taxonomic rank",
+                   c(Species = "species", Genus = "genus", Family = "family"), 
+                   selected = "genus"),
+      # Input: Group by ----
+      selectInput("group", "Group by",
+                  c(groups)),
+      # Input: Select region ----
+      selectInput("region", "Geographic region",
+                  c(regions),
+                  selected = "Caribbean"),
+      # Input: Select family ----
+      selectInput("family", "Family",
+                  c(All = ".", families),
+                  selected = "All")
     ),
 
     # Main panel for displaying outputs ----
     mainPanel(
 
-      # Output: Histogram ----
-      plotOutput(outputId = "distPlot")
+      # Output: Plot ----
+      plotOutput(outputId = "plot")
 
     )
   )
 )
 
-# Define server logic required to draw a histogram ----
+# Server ----------------------------------------------------------------
 server <- function(input, output) {
+  # Reactive: Data filtering and analyses ----
+  data <- reactive({
+    df <- df |>
+      filter_region(region = input$region) |>
+      filter_rank(rank = input$rank) |>
+      filter_family(fam = input$family)
+    df
+  })
+  # Reactive: Plot rendering ----  
+  output$plot <- renderPlot({
 
-  # Histogram of the Old Faithful Geyser Data ----
-  # with requested number of bins
-  # This expression that generates a histogram is wrapped in a call
-  # to renderPlot to indicate that:
-  #
-  # 1. It is "reactive" and therefore should be automatically
-  #    re-executed when inputs (input$bins) change
-  # 2. Its output type is a plot
-  output$distPlot <- renderPlot({
-
-    x    <- faithful$waiting
-    bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-    hist(x, breaks = bins, col = "#75AADB", border = "white",
-         xlab = "Waiting time to next eruption (in mins)",
-         main = "Histogram of waiting times")
+    plot(x = data()$max_ma, y = data()$min_ma)
 
     })
 
 }
-
-# Create Shiny app ----
+# Create app ------------------------------------------------------------
 shinyApp(ui = ui, server = server)
