@@ -79,13 +79,13 @@ server <- function(input, output) {
     tmp <- lapply(names(tmp), function(x) {
       out <- tmp[[x]]
       if (input$type == "occurrences") {
-        out <- get_occurrence_counts(df)
+        out <- get_occurrence_counts(out)
       }
       if (input$type == "collections") {
-        out <- get_collection_counts(df)
+        out <- get_collection_counts(out)
       }
       if (input$type == "richness") {
-        out <- get_richness_counts(df, rank = input$rank)
+        out <- get_richness_counts(out, rank = input$rank)
       }
       out$group_id <- x
       out
