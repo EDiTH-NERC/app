@@ -9,7 +9,6 @@
 # Load libraries --------------------------------------------------------
 library(shiny)
 library(ggplot2)
-library(deeptime)
 
 # Load functions --------------------------------------------------------
 source("utils.R")
@@ -80,8 +79,7 @@ server <- function(input, output) {
   output$plot <- renderPlot({
     
     p <- ggplot(data = data(), aes(x = max_ma, y = min_ma)) +
-      geom_point() +
-      coord_geo()
+      geom_point()
     
     if (input$group != ".") {
       p <- p + facet_wrap(paste0("~", input$group), scales = "free_y")
