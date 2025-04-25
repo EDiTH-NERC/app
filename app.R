@@ -127,7 +127,7 @@ server <- function(input, output) {
         geom_point_interactive(aes(y = taxon, x = max_ma), size = point_size) +
         geom_point_interactive(aes(y = taxon, x = min_ma), size = point_size) +
         geom_text_interactive(aes(y = taxon, x = max_ma, label = taxon),
-                              size = text_size, nudge_y = -0.25, hjust = 1) +
+                              size = text_size, nudge_x = -1, hjust = 1) +
         scale_x_reverse(name = xlab, limits = c(70, 0)) +
         scale_y_discrete() +
         facet_wrap(~group_id, scales = "free_y") +
@@ -140,7 +140,8 @@ server <- function(input, output) {
         facet_wrap(~group_id) +
         custom_theme
     }
-    girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE)))
+    girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE),
+                                     opts_zoom(max = 5)))
   })
 }
 # Create app ------------------------------------------------------------
