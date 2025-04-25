@@ -44,6 +44,7 @@ ui <- fluidPage(
       height: 100vh !important; /* vh = viewport height */
     }
   ")),
+  tags$head(tags$style(HTML('* {font-family: "Arial"};'))),
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
 
@@ -126,7 +127,7 @@ server <- function(input, output) {
         geom_point_interactive(aes(y = taxon, x = max_ma), size = point_size) +
         geom_point_interactive(aes(y = taxon, x = min_ma), size = point_size) +
         geom_text_interactive(aes(y = taxon, x = max_ma, label = taxon),
-                              size = text_size, hjust = 1, nudge_x = -1) +
+                              size = text_size, nudge_y = -0.25, hjust = 1) +
         scale_x_reverse(name = xlab, limits = c(70, 0)) +
         scale_y_discrete() +
         facet_wrap(~group_id, scales = "free_y") +
