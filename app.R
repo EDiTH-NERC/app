@@ -113,9 +113,10 @@ server <- function(input, output) {
   # Reactive: Plot rendering ----  
   output$plot <- renderGirafe({
     out <- data()
-    point_size <- 0.25
-    line_size <- 0.25
-    text_size <- 1
+    n <- length(out$taxon)
+    if (n > 200) {point_size <- 0.1} else {point_size <- 0.25}
+    if (n > 200) {line_size <- 0.1} else {line_size <- 0.25}
+    if (n > 200) {text_size <- 0.25} else {text_size <- 1}
     strip_size <- 5
     if (input$type == "range") {
       out <- out[order(out$max_ma, decreasing = FALSE), ]
@@ -127,7 +128,7 @@ server <- function(input, output) {
         geom_point_interactive(aes(y = taxon, x = max_ma), size = point_size) +
         geom_point_interactive(aes(y = taxon, x = min_ma), size = point_size) +
         geom_text_interactive(aes(y = taxon, x = max_ma, label = taxon),
-                              size = text_size, nudge_x = -1, hjust = 1) +
+                              size = text_size, nudge_x = -0.5, hjust = 1) +
         scale_x_reverse(name = xlab, limits = c(70, 0)) +
         scale_y_discrete() +
         facet_wrap(~group_id, scales = "free_y") +
