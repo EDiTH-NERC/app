@@ -55,7 +55,7 @@ ui <- fluidPage(
       radioButtons("type", "Type",
                    c(Occurrences = "occurrences", Collections = "collections", 
                      Range = "range", 
-                     Richness = "richness", Diversification = "rates"),
+                     Richness = "richness"),
                    selected = "range"),
       # Input: Taxonomic rank ----
       radioButtons("rank", "Taxonomic rank",
@@ -71,7 +71,17 @@ ui <- fluidPage(
       # Input: Select family ----
       selectInput("family", "Family",
                   c(All = ".", families),
-                  selected = "All")
+                  selected = "All"),
+      # Input: Plot parameters ----
+      sliderInput("point", "Point size",
+                  min = 0.1, max = 5,
+                  value = 1),
+      sliderInput("line", "Line size",
+                  min = 0.1, max = 1.5,
+                  value = 0.5),
+      sliderInput("label", "Label size",
+                  min = 0.1, max = 5,
+                  value = 1),
     ),
 
     # Main panel for displaying outputs ----
@@ -113,28 +123,25 @@ server <- function(input, output) {
   # Reactive: Plot rendering ----  
   output$plot <- renderGirafe({
     out <- data()
-    n <- length(out$taxon)
-    if (n > 200) {point_size <- 0.1} else {point_size <- 0.25}
-    if (n > 200) {line_size <- 0.1} else {line_size <- 0.25}
-    if (n > 200) {text_size <- 0.25} else {text_size <- 1}
-    strip_size <- 5
     if (input$type == "range") {
       out <- out[order(out$max_ma, decreasing = FALSE), ]
       out$taxon_id <- 1:nrow(out)
       out$taxon <- factor(x = out$taxon, levels = out$taxon)
       p <- ggplot(data = out, aes(y = taxon, xmin = min_ma, xmax = max_ma,
                                   data_id = taxon, tooltip = taxon)) +
-        geom_linerange_interactive(size = line_size) +
-        geom_point_interactive(aes(y = taxon, x = max_ma), size = point_size) +
-        geom_point_interactive(aes(y = taxon, x = min_ma), size = point_size) +
-        geom_text_interactive(aes(y = taxon, x = max_ma, label = taxon),
-                              size = text_size, nudge_x = -0.25, hjust = 1) +
+        geom_linerange_interactive(size = input$line) +
+        geom_point_interactive(aes(y = taxon, x = max_ma), size = input$point,
+                               pch = 20) +
+        geom_point_interactive(aes(y = taxon, x = min_ma), size = input$point,
+                               pch = 20) +
+        geom_text_interactive(aes(y = taxon, x = max_ma + 1, label = taxon),
+                              size = input$label, hjust = 1, check_overlap = FALSE) +
         scale_x_reverse(name = xlab, limits = c(70, 0)) +
         scale_y_discrete() +
         facet_wrap(~group_id, scales = "free_y") +
         theme_bw(base_size = 6) +
         custom_theme + 
-        theme(strip.text = element_text(size = strip_size))
+        theme(strip.text = element_text(size = 5))
     } else {
       p <- ggplot(data = data(), aes(x = mid_ma, y = value)) +
         geom_point() +
@@ -142,7 +149,9 @@ server <- function(input, output) {
         custom_theme
     }
     girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE),
-                                     opts_zoom(max = 5)))
+                                     opts_zoom(max = 7),
+                                     opts_toolbar(saveaspng = FALSE,
+                                                  pngname = "plot")))
   })
 }
 # Create app ------------------------------------------------------------
