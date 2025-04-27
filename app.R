@@ -30,9 +30,6 @@ xlab <- c("Time (Ma)")
 custom_theme <- theme(legend.position = "none",
         legend.title = element_blank(),
         axis.text = element_text(colour = "black"),
-        axis.text.y = element_blank(),
-        axis.title.y = element_blank(),
-        axis.ticks.y = element_blank(),
         axis.title.x = element_text(),
         axis.line.x = element_line(),
         panel.grid = element_blank())
@@ -49,21 +46,22 @@ ui <- fluidPage(
   sidebarLayout(
 
     # Sidebar panel for inputs ----
-    sidebarPanel(width = 2,
+    sidebarPanel(width = 3,
+                 h3("Analyses"),
 
       # Input: Analyses type ----
-      radioButtons("type", "Type",
+      selectInput("type", "Type",
                    c(Occurrences = "occurrences", Collections = "collections", 
-                     Range = "range", 
-                     Richness = "richness"),
-                   selected = "range"),
+                     Taxa = "taxa", Range = "range"),
+                   selected = "occurrences"),
       # Input: Taxonomic rank ----
-      radioButtons("rank", "Taxonomic rank",
+      selectInput("rank", "Taxonomic rank",
                    c(Species = "species", Genus = "genus", Family = "family"), 
                    selected = "genus"),
       # Input: Group by ----
       selectInput("group", "Group by",
                   c(groups)),
+      h3("Filter"),
       # Input: Select region ----
       selectInput("region", "Geographic region",
                   c(regions),
@@ -73,6 +71,7 @@ ui <- fluidPage(
                   c(All = ".", families),
                   selected = "All"),
       # Input: Plot parameters ----
+      h3("Plot"),
       sliderInput("point", "Point size",
                   min = 0.1, max = 5,
                   value = 1),
@@ -85,7 +84,7 @@ ui <- fluidPage(
     ),
 
     # Main panel for displaying outputs ----
-    mainPanel(width = 10,
+    mainPanel(width = 9,
 
       # Output: Plot ----
       girafeOutput("plot")
@@ -112,7 +111,7 @@ server <- function(input, output) {
         out <- get_occurrence_counts(df = out)
       } else if (input$type == "collections") {
         out <- get_collection_counts(df = out)
-      } else if (input$type == "richness") {
+      } else if (input$type == "taxa") {
         out <- get_richness_counts(df = out, rank = input$rank)
       }
       out$group_id <- x
@@ -124,29 +123,42 @@ server <- function(input, output) {
   output$plot <- renderGirafe({
     out <- data()
     if (input$type == "range") {
+      out <- out[order(out$taxon, decreasing = TRUE), ]
       out <- out[order(out$max_ma, decreasing = FALSE), ]
       out$taxon_id <- 1:nrow(out)
-      out$taxon <- factor(x = out$taxon, levels = out$taxon)
-      p <- ggplot(data = out, aes(y = taxon, xmin = min_ma, xmax = max_ma,
+      out$taxon_id <- factor(x = out$taxon_id, levels = out$taxon_id)
+      p <- ggplot(data = out, aes(y = taxon_id, xmin = min_ma, xmax = max_ma,
                                   data_id = taxon, tooltip = taxon)) +
         geom_linerange_interactive(size = input$line) +
-        geom_point_interactive(aes(y = taxon, x = max_ma), size = input$point,
+        geom_point_interactive(aes(y = taxon_id, x = max_ma), size = input$point,
                                pch = 20) +
-        geom_point_interactive(aes(y = taxon, x = min_ma), size = input$point,
+        geom_point_interactive(aes(y = taxon_id, x = min_ma), size = input$point,
                                pch = 20) +
-        geom_text_interactive(aes(y = taxon, x = max_ma + 1, label = taxon),
+        geom_text_interactive(aes(y = taxon_id, x = max_ma + 1, label = taxon),
                               size = input$label, hjust = 1, check_overlap = FALSE) +
         scale_x_reverse(name = xlab, limits = c(70, 0)) +
         scale_y_discrete() +
         facet_wrap(~group_id, scales = "free_y") +
         theme_bw(base_size = 6) +
         custom_theme + 
-        theme(strip.text = element_text(size = 5))
+        theme(strip.text = element_text(size = 5),
+              axis.title.y = element_blank(),
+              axis.text.y = element_blank(),
+              axis.ticks.y = element_blank())
     } else {
+      # Plot parameters
+      ylab <- paste0("Number of ", input$type)
+      
       p <- ggplot(data = data(), aes(x = mid_ma, y = value)) +
-        geom_point() +
-        facet_wrap(~group_id) +
-        custom_theme
+        geom_line() +
+        geom_point_interactive(aes(data_id = interval_name, 
+                                   tooltip = interval_name)) +
+        scale_x_reverse(name = xlab) +
+        scale_y_continuous(name = ylab) +
+        facet_wrap(~group_id, scales = "free_y") +
+        theme_bw(base_size = 6) +
+        custom_theme + 
+        theme(strip.text = element_text(size = 5))
     }
     girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE),
                                      opts_zoom(max = 7),
