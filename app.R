@@ -9,6 +9,7 @@
 # Load libraries --------------------------------------------------------
 library(shiny)
 library(ggplot2)
+library(bslib)
 
 # Load functions --------------------------------------------------------
 source("utils.R")
