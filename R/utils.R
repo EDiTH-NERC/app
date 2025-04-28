@@ -46,7 +46,7 @@ group_data <- function(df, group = ".") {
 # Analyses --------------------------------------------------------------
 get_occurrence_counts <- function(df) {
   # Get occurrence counts
-  bins <- readRDS("stages.RDS")
+  bins <- readRDS("data/stages.RDS")
   bins$value <- NA
   for (i in 1:nrow(bins)) {
     bins$value[i] <- length(unique(df[which(df[, "mid_ma"] == bins[i, "mid_ma"]), 
@@ -56,7 +56,7 @@ get_occurrence_counts <- function(df) {
 }
 get_collection_counts <- function(df) {
   # Get collection counts
-  bins <- readRDS("stages.RDS")
+  bins <- readRDS("data/stages.RDS")
   bins$value <- NA
   for (i in 1:nrow(bins)) {
     bins$value[i] <- length(unique(df[which(df[, "mid_ma"] == bins[i, "mid_ma"]), 
@@ -66,7 +66,7 @@ get_collection_counts <- function(df) {
 }
 get_richness_counts <- function(df, rank) {
   # Get taxonomic counts
-  bins <- readRDS("stages.RDS")
+  bins <- readRDS("data/stages.RDS")
   bins$value <- NA
   for (i in 1:nrow(bins)) {
     bins$value[i] <- length(unique(df[which(df[, "mid_ma"] == bins[i, "mid_ma"]), 
