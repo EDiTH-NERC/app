@@ -1,235 +1,170 @@
-# Forecasting Sandbox ----
-# This is an example for a Shinylive R app
-# The app provides a forecasting sandbox for the AirPassengers dataset
-# It supports 3 stats forecasting models - Linear Regression, ARIMA, and Holt-Winters
+# Header ----------------------------------------------------------------
+# Project: app
+# File name: app.R
+# Last updated: 2025-04-24
+# Author: Lewis A. Jones
+# Email: LewisA.Jones@outlook.com
+# Repository: https://github.com/LewisAJones/app
 
+# Load libraries --------------------------------------------------------
 library(shiny)
-data(AirPassengers)
+library(ggplot2)
+library(ggiraph)
 
-# UI ----
+# Load functions --------------------------------------------------------
+source("R/utils.R")
+
+# Load data -------------------------------------------------------------
+df <- readRDS("data/PBDB.RDS")
+bins <- readRDS("data/stages.RDS")
+
+# Input options ---------------------------------------------------------
+families <- sort(unique(df$family))
+regions <- sort(unique(df$region))
+groups <- c(None = ".", Family = "family", Genus = "genus", Country = "cc")
+
+# Plot defaults ---------------------------------------------------------
+# Labs
+xlab <- c("Time (Ma)")
+# Theme
+custom_theme <- theme(legend.position = "none",
+                      legend.title = element_blank(),
+                      axis.text = element_text(colour = "black"),
+                      axis.title.x = element_text(),
+                      axis.line.x = element_line(),
+                      panel.grid = element_blank())
+
+# UI --------------------------------------------------------------------
 ui <- fluidPage(
-  
-  # App title ----
-  titlePanel("Forecasting Sandbox"),
+  tags$style(HTML("
+    #plot {
+      height: 100vh !important; /* vh = viewport height */
+    }
+  ")),
+  tags$head(tags$style(HTML('* {font-family: "Arial"};'))),
+  # Sidebar layout with input and output definitions ----
   sidebarLayout(
     
+    # Sidebar panel for inputs ----
     sidebarPanel(width = 3,
-                 selectInput(inputId = "model",
-                             label = "Select Model",
-                             choices = c("Linear Regression", "ARIMA", "Holt-Winters"),
-                             selected = "Linear Regression"),
-                 # Linear Regression model arguments
-                 conditionalPanel(condition = "input.model == 'Linear Regression'",
-                                  checkboxGroupInput(inputId = "lm_args", 
-                                                     label = "Select Regression Features:", 
-                                                     choices = list("Trend" = 1, 
-                                                                    "Seasonality" = 2),
-                                                     selected = 1)),
-                 # ARIMA model arguments
-                 conditionalPanel(condition = "input.model == 'ARIMA'",
-                                  h5("Order Parameters"),
-                                  sliderInput(inputId = "p",
-                                              label = "p:",
-                                              min = 0,
-                                              max = 5,
-                                              value = 0),
-                                  sliderInput(inputId = "d",
-                                              label = "d:",
-                                              min = 0,
-                                              max = 5,
-                                              value = 0),
-                                  sliderInput(inputId = "q",
-                                              label = "q:",
-                                              min = 0,
-                                              max = 5,
-                                              value = 0),
-                                  h5("Seasonal Parameters:"),
-                                  sliderInput(inputId = "P",
-                                              label = "P:",
-                                              min = 0,
-                                              max = 5,
-                                              value = 0),
-                                  sliderInput(inputId = "D",
-                                              label = "D:",
-                                              min = 0,
-                                              max = 5,
-                                              value = 0),
-                                  sliderInput(inputId = "Q",
-                                              label = "Q:",
-                                              min = 0,
-                                              max = 5,
-                                              value = 0)
-                 ),
-                 # Holt Winters model arguments
-                 conditionalPanel(condition = "input.model == 'Holt-Winters'",
-                                  checkboxGroupInput(inputId = "hw_args", 
-                                                     label = "Select Holt-Winters Parameters:", 
-                                                     choices = list("Beta" = 2, 
-                                                                    "Gamma" = 3),
-                                                     selected = c(1, 2, 3)),
-                                  selectInput(inputId = "hw_seasonal",
-                                              label = "Select Seasonal Type:",
-                                              choices = c("Additive", "Multiplicative"),
-                                              selected = "Additive")),
+                 h3("Analyses"),
                  
-                 checkboxInput(inputId = "log", 
-                               label = "Log Transformation",
-                               value = FALSE),
-                 sliderInput(inputId = "h",
-                             label = "Forecasting Horizon:",
-                             min = 1,
-                             max = 60,
-                             value = 24)
-                 #   actionButton(inputId = "update",
-                 #                 label = "Update!")
-                 
+                 # Input: Analyses type ----
+                 selectInput("type", "Type",
+                             c(Occurrences = "occurrences", Collections = "collections", 
+                               Taxa = "taxa", Range = "range"),
+                             selected = "occurrences"),
+                 # Input: Taxonomic rank ----
+                 selectInput("rank", "Taxonomic rank",
+                             c(Species = "species", Genus = "genus", Family = "family"), 
+                             selected = "genus"),
+                 # Input: Group by ----
+                 selectInput("group", "Group by",
+                             c(groups)),
+                 h3("Filter"),
+                 # Input: Select region ----
+                 selectInput("region", "Geographic region",
+                             c(regions),
+                             selected = "Caribbean"),
+                 # Input: Select family ----
+                 selectInput("family", "Family",
+                             c(All = ".", families),
+                             selected = "All"),
+                 # Input: Plot parameters ----
+                 h3("Plot"),
+                 sliderInput("point", "Point size",
+                             min = 0.1, max = 5,
+                             value = 1),
+                 sliderInput("line", "Line size",
+                             min = 0.1, max = 1.5,
+                             value = 0.5),
+                 sliderInput("label", "Label size",
+                             min = 0.1, max = 5,
+                             value = 1)
     ),
     
     # Main panel for displaying outputs ----
     mainPanel(width = 9,
-              # Forecast Plot ----
-              plotOutput(outputId = "fc_plot",
-                         height = "400px")
+              
+              # Output: Plot ----
+              girafeOutput("plot")
               
     )
   )
 )
 
-# Define server logic required to draw a histogram ----
+# Server ----------------------------------------------------------------
 server <- function(input, output) {
-  # Load the dataset a reactive object
-  d <- reactiveValues(df = data.frame(input = as.numeric(AirPassengers), 
-                                      index = seq.Date(from = as.Date("1949-01-01"),
-                                                       by = "month",
-                                                       length.out = length(AirPassengers))),
-                      air = AirPassengers)
-  
-  # Log transformation 
-  observeEvent(input$log,{
-    if(input$log){
-      d$df <- data.frame(input = log(as.numeric(AirPassengers)), 
-                         index = seq.Date(from = as.Date("1949-01-01"),
-                                          by = "month",
-                                          length.out = length(AirPassengers)))
-      
-      d$air <- log(AirPassengers)
+  # Reactive: Data filtering and analyses ----
+  data <- reactive({
+    tmp <- df |>
+      filter_region(region = input$region) |>
+      filter_rank(rank = input$rank) |>
+      filter_family(fam = input$family) |>
+      group_data(group = input$group)
+    # Analyses
+    tmp <- lapply(names(tmp), function(x) {
+      out <- tmp[[x]]
+      if (input$type == "range") {
+        out <- get_temporal_ranges(df = out, rank = input$rank)
+      } else if (input$type == "occurrences") {
+        out <- get_occurrence_counts(df = out)
+      } else if (input$type == "collections") {
+        out <- get_collection_counts(df = out)
+      } else if (input$type == "taxa") {
+        out <- get_richness_counts(df = out, rank = input$rank)
+      }
+      out$group_id <- x
+      out
+    })
+    do.call(rbind.data.frame, tmp)
+  })
+  # Reactive: Plot rendering ----  
+  output$plot <- renderGirafe({
+    out <- data()
+    if (input$type == "range") {
+      out <- out[order(out$taxon, decreasing = TRUE), ]
+      out <- out[order(out$max_ma, decreasing = FALSE), ]
+      out$taxon_id <- 1:nrow(out)
+      out$taxon_id <- factor(x = out$taxon_id, levels = out$taxon_id)
+      p <- ggplot(data = out, aes(y = taxon_id, xmin = min_ma, xmax = max_ma,
+                                  data_id = taxon, tooltip = taxon)) +
+        geom_linerange_interactive(size = input$line) +
+        geom_point_interactive(aes(y = taxon_id, x = max_ma), size = input$point,
+                               pch = 20) +
+        geom_point_interactive(aes(y = taxon_id, x = min_ma), size = input$point,
+                               pch = 20) +
+        geom_text_interactive(aes(y = taxon_id, x = max_ma + 1, label = taxon),
+                              size = input$label, hjust = 1, check_overlap = FALSE) +
+        scale_x_reverse(name = xlab, limits = c(70, 0)) +
+        scale_y_discrete() +
+        facet_wrap(~group_id, scales = "free_y") +
+        theme_bw(base_size = 6) +
+        custom_theme + 
+        theme(strip.text = element_text(size = 5),
+              axis.title.y = element_blank(),
+              axis.text.y = element_blank(),
+              axis.ticks.y = element_blank())
     } else {
-      d$df <- data.frame(input = as.numeric(AirPassengers), 
-                         index = seq.Date(from = as.Date("1949-01-01"),
-                                          by = "month",
-                                          length.out = length(AirPassengers)))
+      # Plot parameters
+      ylab <- paste0("Number of ", input$type)
       
-      d$air <- AirPassengers
+      p <- ggplot(data = data(), aes(x = mid_ma, y = value)) +
+        geom_line() +
+        geom_point_interactive(aes(data_id = interval_name, 
+                                   tooltip = interval_name)) +
+        scale_x_reverse(name = xlab) +
+        scale_y_continuous(name = ylab) +
+        facet_wrap(~group_id, scales = "free_y") +
+        theme_bw(base_size = 6) +
+        custom_theme + 
+        theme(strip.text = element_text(size = 5))
     }
+    girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE),
+                                     opts_zoom(max = 7),
+                                     opts_toolbar(saveaspng = FALSE,
+                                                  pngname = "plot")))
   })
-  
-  # The forecasting models execute under the plot render
-  output$fc_plot <- renderPlot({
-    
-    # if adding a prediction intervals level argument set over here
-    pi <- 0.95
-    
-    # Holt-Winters model
-    if(input$model == "Holt-Winters"){
-      a <- b <- c <- NULL
-      
-      if(!"2" %in% input$hw_args){
-        b <- FALSE
-      }
-      
-      if(!"3" %in% input$hw_args){
-        c <- FALSE
-      }
-      
-      md <- HoltWinters(d$air, 
-                        seasonal = ifelse(input$hw_seasonal == "Additive", "additive", "multiplicative"),
-                        beta = b,
-                        gamma = c
-      )
-      fc <- predict(md, n.ahead = input$h, prediction.interval = TRUE) |>
-        as.data.frame()
-      fc$index <- seq.Date(from = as.Date("1961-01-01"),
-                           by = "month",
-                           length.out = input$h)
-      # ARIMA model
-    } else if(input$model == "ARIMA"){
-      
-      md <- arima(d$air,
-                  order = c(input$p, input$d, input$q),
-                  seasonal = list(order = c(input$P, input$D, input$Q))
-      )
-      fc <- predict(md, n.ahead = input$h, prediction.interval = TRUE) |>
-        as.data.frame() 
-      names(fc) <- c("fit", "se")
-      
-      fc$index <- seq.Date(from = as.Date("1961-01-01"),
-                           by = "month",
-                           length.out = input$h)
-      
-      fc$upr <- fc$fit + 1.96 * fc$se
-      fc$lwr <- fc$fit - 1.96 * fc$se
-      # Linear Regression model
-    } else if(input$model == "Linear Regression"){
-      
-      d_lm <- d$df
-      
-      d_fc <- data.frame(index = seq.Date(from = as.Date("1961-01-01"),
-                                          by = "month",
-                                          length.out = input$h))
-      
-      if("1" %in% input$lm_args){
-        d_lm$trend <- 1:nrow(d_lm)
-        d_fc$trend <- (max(d_lm$trend) + 1):(max(d_lm$trend) + input$h)
-      }
-      
-      if("2" %in% input$lm_args){
-        d_lm$season <- as.factor(months((d_lm$index)))
-        d_fc$season <- factor(months((d_fc$index)), levels = levels(d_lm$season))
-      }
-      
-      md <- lm(input ~ ., data = d_lm[, - which(names(d_lm) == "index")])
-      
-      fc <- predict(md, n.ahead = input$h, interval = "prediction",
-                    level = pi, newdata = d_fc) |>
-        as.data.frame() 
-      
-      
-      fc$index <- seq.Date(from = as.Date("1961-01-01"),
-                           by = "month",
-                           length.out = input$h)
-      
-    }
-    
-    # Setting the plot
-    at_x <- pretty(seq.Date(from = min(d$df$index),
-                            to = max(fc$index),
-                            by = "month"))
-    
-    at_y <- c(pretty(c(d$df$input, fc$upr)), 1200)
-    
-    plot(x = d$df$index, y = d$df$input,
-         col = "#1f77b4",
-         type = "l",
-         frame.plot = FALSE,
-         axes = FALSE,
-         panel.first = abline(h = at_y, col = "grey80"),
-         main = "AirPassengers Forecast",
-         xlim = c(min(d$df$index), max(fc$index)),
-         ylim = c(min(c(min(d$df$input), min(fc$lwr))), max(c(max(fc$upr), max(d$df$input)))),
-         xlab = paste("Model:", input$model, sep = " "),
-         ylab = "Num. of Passengers (in Thousands)")
-    mtext(side =1, text = format(at_x, format = "%Y-%M"), at = at_x,
-          col = "grey20", line = 1, cex = 0.8)
-    
-    mtext(side =2, text = format(at_y, scientific = FALSE), at = at_y,
-          col = "grey20", line = 1, cex = 0.8)
-    lines(x = fc$index, y = fc$fit, col = '#1f77b4', lty = 2, lwd = 2)
-    lines(x = fc$index, y = fc$upr, col = 'blue', lty = 2, lwd = 2)
-    lines(x = fc$index, y = fc$lwr, col = 'blue', lty = 2, lwd = 2)
-    
-  })
-  
 }
-
-# Create Shiny app ----
+# Create app ------------------------------------------------------------
 shinyApp(ui = ui, server = server)
