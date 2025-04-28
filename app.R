@@ -41,7 +41,7 @@ ui <- fluidPage(
 
       # Input: Analyses type ----
       h3("Analyses"),
-      selectInput("type", "Select a type of analyses",
+      radioButtons("type", "Select a type of analyses",
                    c("Number of occurrences" = "occurrences", 
                      "Number of collections" = "collections", 
                      "Number of taxa" = "taxa", "Temporal ranges" = "range"),
@@ -115,26 +115,28 @@ server <- function(input, output) {
     point_size <- input$point
     line_size <- input$line
     label_size <- input$label
+    name_size <- label_size * 0.8
     xlim <- c(68, 0)
     # Set facets
     groups <- unique(out[, "group_id"])
     n <- ceiling(sqrt(length(groups)))
-    par(mfrow = c(n, n), mar=c(5, 4, 3, 3))
+    par(mfrow = c(n, n), mar=c(5, 4, 4, 2))
 
     for (i in groups) {
       out_df <- subset(out, group_id == i)
       if (input$type == "range") {
         out_df <- out_df[order(out_df$taxon, decreasing = TRUE), ]
         out_df <- out_df[order(out_df$max_ma, decreasing = FALSE), ]
-        ylim <- c(0, nrow(out_df) + 1)
         out_df$taxon_id <- 1:nrow(out_df)
+        
+        # Plot parameters
+        ylim <- c(0, nrow(out_df) + 1)
+        
         plot(x = NA, y = NA, xlim = xlim, ylim = ylim, 
              yaxt = "n", axes = TRUE,
              main = unique(out_df$group_id), xlab = "Time (Ma)", ylab = NA, 
              cex.axis = label_size, cex.lab = label_size)
-        #axis(2, at = out_df$taxon_id, labels = out_df$taxon, las = 2, cex.axis = label_size)
-        segments(x0 = out_df$max_ma, x1 = out_df$min_ma,
-                 y0 = out_df$taxon_id,
+        segments(x0 = out_df$max_ma, x1 = out_df$min_ma, y0 = out_df$taxon_id,
                  col = 1, lty = 1, lwd = line_size)
         points(x = out_df$max_ma, y = out_df$taxon_id,
                pch = 20, col = "black", cex = point_size)
@@ -142,14 +144,14 @@ server <- function(input, output) {
                pch = 20, col = "black", cex = point_size)
         text(x = (out_df$max_ma) + 0.5, y = out_df$taxon_id, 
              labels = out_df$taxon,
-             adj = c(1, 0.5), cex = label_size * 0.5)
+             adj = c(1, 0.5), cex = name_size)
         rect(xleft = max(bins$max_ma) * 2, xright = max(bins$max_ma) * -2, 
              ybottom = max(ylim) * -0.04, ytop = 0,
              col = "grey80")
         rect(xleft = bins$max_ma, xright = bins$min_ma, 
              ybottom = max(ylim) * -0.04, ytop = 0,
              col = bins$colour)
-        geo_size <- (bins$duration_myr / max(bins$duration_myr) * (1 + label_size))
+        geo_size <- bins$duration_myr / max(bins$duration_myr) * (1.5 - strwidth(out_df$interva_name))
         if (length(groups) == 1) {
           text(x = bins$mid_ma, y = max(ylim) * -0.02, 
                labels = bins$interval_name,
@@ -172,7 +174,7 @@ server <- function(input, output) {
         rect(xleft = bins$max_ma, xright = bins$min_ma, 
              ybottom = max(ylim) * -0.04, ytop = 0,
              col = bins$colour)
-        geo_size <- bins$duration_myr / max(bins$duration_myr) * (1 + label_size)
+        geo_size <- bins$duration_myr / max(bins$duration_myr) * (1.5 - strwidth(out_df$interva_name))
         if (length(groups) == 1) {
           text(x = bins$mid_ma, y = max(ylim) * -0.02, 
                labels = bins$interval_name,
