@@ -19,7 +19,7 @@ bins <- readRDS("data/stages.RDS")
 # Input options ---------------------------------------------------------
 families <- sort(unique(df$family))
 regions <- sort(unique(df$region))
-groups <- c(None = ".", Family = "family", Genus = "genus", Country = "cc")
+groups <- c(Ungrouped = ".", Family = "family", Genus = "genus", Country = "cc")
 
 # Plot defaults ---------------------------------------------------------
 # Labs
@@ -40,33 +40,36 @@ ui <- fluidPage(
     sidebarPanel(width = 3,
 
       # Input: Analyses type ----
-      selectInput("type", "Type",
-                   c(Occurrences = "occurrences", Collections = "collections", 
-                     Taxa = "taxa", Range = "range"),
+      h3("Analyses"),
+      selectInput("type", "Select a type of analyses",
+                   c("Number of occurrences" = "occurrences", 
+                     "Number of collections" = "collections", 
+                     "Number of taxa" = "taxa", "Temporal ranges" = "range"),
                    selected = "occurrences"),
       # Input: Taxonomic rank ----
-      selectInput("rank", "Taxonomic rank",
+      selectInput("rank", "Select a taxonomic rank",
                    c(Species = "species", Genus = "genus", Family = "family"), 
                    selected = "genus"),
-      # Input: Group by ----
-      selectInput("group", "Group by",
-                  c(groups)),
       # Input: Select region ----
-      selectInput("region", "Geographic region",
+      selectInput("region", "Select a geographic region",
                   c(regions),
                   selected = "Caribbean"),
       # Input: Select family ----
-      selectInput("family", "Family",
+      selectInput("family", "Select a taxonomic family",
                   c(All = ".", families),
                   selected = "All"),
+      # Input: Group by ----
+      selectInput("group", "Select a grouping variable",
+                  c(groups)),
+      h3("Plotting"),
       # Input: Plot parameters ----
-      sliderInput("point", "Point size",
+      sliderInput("point", "Select a point size",
                   min = 0, max = 5,
                   value = 1.25),
-      sliderInput("line", "Line size",
+      sliderInput("line", "Select a line size",
                   min = 0, max = 5,
                   value = 1.25),
-      sliderInput("label", "Label size",
+      sliderInput("label", "Select a label size",
                   min = 0, max = 1.5,
                   value = 0.75)
     ),
@@ -107,43 +110,50 @@ server <- function(input, output) {
   })
   output$plot <- renderPlot({
     out <- data()
+    groups <- unique(out[, "group_id"])
+    n <- ceiling(sqrt(length(groups)))
+    # Collect usr par for resetting
+    usrpar <- par(no.readonly = TRUE)
+    par(mfrow = c(n, n), mar=c(5, 4, 3, 3))
     point_size <- input$point
     line_size <- input$line
     label_size <- input$label
-    if (input$type == "range") {
-      out <- out[order(out$taxon, decreasing = TRUE), ]
-      out <- out[order(out$max_ma, decreasing = FALSE), ]
-      # Collect usr par for resetting
-      usrpar <- par(no.readonly = TRUE)
-      # Estimate max label width
-      max_label_width <- max(strwidth(out$taxon, units = "inches"))
-      # Convert inches to lines (approximate conversion factor: 0.2)
-      extra_margin <- max_label_width / 0.2
-      # Update left margin (add extra space, default is 4)
-      par(mar = usrpar$mar + c(0, extra_margin, 0, 0))
-      xlim <- c(max(out$max_ma), min(out$min_ma))
-      ylim <- c(1, (nrow(out)))
-      out$taxon_id <- 1:nrow(out)
-      plot(x = NA, y = NA, xlim = xlim, ylim = ylim, 
-           yaxt = "n", axes = TRUE,
-           xlab = "Time (Ma)", ylab = NA, cex.axis = label_size, cex.lab = label_size)
-      axis(2, at = out$taxon_id, labels = out$taxon, las = 2, cex.axis = label_size)
-      segments(x0 = out$max_ma, x1 = out$min_ma,
-               y0 = out$taxon_id,
-               col = 1, lty = 1, lwd = line_size)
-      points(x = out$max_ma, y = out$taxon_id,
-             pch = 20, col = "black", cex = point_size)
-      points(x = out$min_ma, y = out$taxon_id,
-             pch = 20, col = "black", cex = point_size)
-      # Reset par
-      par(usrpar)
-    } else {
-      plot(x = out$mid_ma, y = out$value,
-           xlab = "Time (Ma)", ylab = paste0("Number of ", input$type),
-           xlim = c(max(out$max_ma), min(out$min_ma)),
-           type = "l", lwd = line_size, 
-           cex.axis = label_size, cex.lab = label_size)
-      points(x = out$mid_ma, y = out$value, pch = 20, cex = point_size)
+
+    
+    for (i in groups) {
+      df <- subset(out, group_id == i)
+      if (input$type == "range") {
+        df <- df[order(df$taxon, decreasing = TRUE), ]
+        df <- df[order(df$max_ma, decreasing = FALSE), ]
+        # Estimate max label width
+        max_label_width <- max(strwidth(df$taxon, units = "inches"))
+        # Convert inches to lines (approximate conversion factor: 0.2)
+        extra_margin <- max_label_width / 0.2
+        # Update left margin (add extra space, default is 4)
+        par(mar = usrpar$mar + c(0, extra_margin, 0, 0))
+        xlim <- c(max(df$max_ma), min(df$min_ma))
+        ylim <- c(0, nrow(df) + 1)
+        df$taxon_id <- 1:nrow(df)
+        plot(x = NA, y = NA, xlim = xlim, ylim = ylim, 
+             yaxt = "n", axes = TRUE,
+             main = unique(df$group_id), xlab = "Time (Ma)", ylab = NA, 
+             cex.axis = label_size, cex.lab = label_size)
+        axis(2, at = df$taxon_id, labels = df$taxon, las = 2, cex.axis = label_size)
+        segments(x0 = df$max_ma, x1 = df$min_ma,
+                 y0 = df$taxon_id,
+                 col = 1, lty = 1, lwd = line_size)
+        points(x = df$max_ma, y = df$taxon_id,
+               pch = 20, col = "black", cex = point_size)
+        points(x = df$min_ma, y = df$taxon_id,
+               pch = 20, col = "black", cex = point_size)
+      } else {
+        plot(x = df$mid_ma, y = df$value, main = unique(df$group_id),
+             xlab = "Time (Ma)", ylab = paste0("Number of ", input$type),
+             xlim = c(max(df$max_ma), min(df$min_ma)),
+             type = "l", lwd = line_size, 
+             cex.axis = label_size, cex.lab = label_size)
+        points(x = df$mid_ma, y = df$value, pch = 20, cex = point_size)
+      }
     }
   })
 }
