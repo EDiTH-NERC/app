@@ -71,7 +71,7 @@ ui <- fluidPage(
                   value = 1.25),
       sliderInput("label", "Select a label size",
                   min = 0, max = 1.5,
-                  value = 0.75)
+                  value = 1)
     ),
 
     # Main panel for displaying outputs ----
@@ -119,40 +119,66 @@ server <- function(input, output) {
     line_size <- input$line
     label_size <- input$label
 
-    
     for (i in groups) {
-      df <- subset(out, group_id == i)
+      out_df <- subset(out, group_id == i)
       if (input$type == "range") {
-        df <- df[order(df$taxon, decreasing = TRUE), ]
-        df <- df[order(df$max_ma, decreasing = FALSE), ]
+        out_df <- out_df[order(out_df$taxon, decreasing = TRUE), ]
+        out_df <- out_df[order(out_df$max_ma, decreasing = FALSE), ]
         # Estimate max label width
-        max_label_width <- max(strwidth(df$taxon, units = "inches"))
+        max_label_width <- max(strwidth(out_df$taxon, units = "inches"))
         # Convert inches to lines (approximate conversion factor: 0.2)
         extra_margin <- max_label_width / 0.2
         # Update left margin (add extra space, default is 4)
         par(mar = usrpar$mar + c(0, extra_margin, 0, 0))
-        xlim <- c(max(df$max_ma), min(df$min_ma))
-        ylim <- c(0, nrow(df) + 1)
-        df$taxon_id <- 1:nrow(df)
+        xlim <- c(max(out_df$max_ma), min(out_df$min_ma))
+        ylim <- c(0, nrow(out_df) + 1)
+        out_df$taxon_id <- 1:nrow(out_df)
         plot(x = NA, y = NA, xlim = xlim, ylim = ylim, 
              yaxt = "n", axes = TRUE,
-             main = unique(df$group_id), xlab = "Time (Ma)", ylab = NA, 
+             main = unique(out_df$group_id), xlab = "Time (Ma)", ylab = NA, 
              cex.axis = label_size, cex.lab = label_size)
-        axis(2, at = df$taxon_id, labels = df$taxon, las = 2, cex.axis = label_size)
-        segments(x0 = df$max_ma, x1 = df$min_ma,
-                 y0 = df$taxon_id,
+        axis(2, at = out_df$taxon_id, labels = out_df$taxon, las = 2, cex.axis = label_size)
+        segments(x0 = out_df$max_ma, x1 = out_df$min_ma,
+                 y0 = out_df$taxon_id,
                  col = 1, lty = 1, lwd = line_size)
-        points(x = df$max_ma, y = df$taxon_id,
+        points(x = out_df$max_ma, y = out_df$taxon_id,
                pch = 20, col = "black", cex = point_size)
-        points(x = df$min_ma, y = df$taxon_id,
+        points(x = out_df$min_ma, y = out_df$taxon_id,
                pch = 20, col = "black", cex = point_size)
+        rect(xleft = max(bins$max_ma) * 2, xright = max(bins$max_ma) * -2, 
+             ybottom = max(ylim) * -0.04, ytop = 0,
+             col = "grey80")
+        rect(xleft = bins$max_ma, xright = bins$min_ma, 
+             ybottom = max(ylim) * -0.04, ytop = 0,
+             col = bins$colour)
+        geo_size <- (bins$duration_myr / max(bins$duration_myr) * (1 + label_size))
+        if (length(groups) == 1) {
+          text(x = bins$mid_ma, y = max(ylim) * -0.02, 
+               labels = bins$interval_name,
+               adj = c(0.5, 0.5), cex = geo_size)
+        }
       } else {
-        plot(x = df$mid_ma, y = df$value, main = unique(df$group_id),
+        plot(x = out_df$mid_ma, y = out_df$value, main = unique(out_df$group_id),
              xlab = "Time (Ma)", ylab = paste0("Number of ", input$type),
-             xlim = c(max(df$max_ma), min(df$min_ma)),
-             type = "l", lwd = line_size, 
+             xlim = c(max(out_df$max_ma), min(out_df$min_ma)),
+             ylim = c(0, max(out_df$value)),
+             type = "n", lwd = line_size,
              cex.axis = label_size, cex.lab = label_size)
-        points(x = df$mid_ma, y = df$value, pch = 20, cex = point_size)
+        rect(xleft = out_df$max_ma, xright = out_df$min_ma, 
+             ybottom = 0, ytop = out_df$value,
+             col = out_df$colour)
+        rect(xleft = max(bins$max_ma) * 2, xright = max(bins$max_ma) * -2, 
+             ybottom = max(out_df$value) * -0.04, ytop = 0,
+             col = "grey80")
+        rect(xleft = bins$max_ma, xright = bins$min_ma, 
+             ybottom = max(out_df$value) * -0.04, ytop = 0,
+             col = bins$colour)
+        geo_size <- bins$duration_myr / max(bins$duration_myr) * (1 + label_size)
+        if (length(groups) == 1) {
+          text(x = bins$mid_ma, y = max(out_df$value) * -0.02, 
+               labels = bins$interval_name,
+               adj = c(0.5, 0.5), cex = geo_size)
+        }
       }
     }
   })
