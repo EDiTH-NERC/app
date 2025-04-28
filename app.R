@@ -8,7 +8,6 @@
 
 # Load libraries --------------------------------------------------------
 library(shiny)
-library(bslib)
 
 # Load functions --------------------------------------------------------
 source("R/utils.R")
@@ -25,13 +24,6 @@ groups <- c(None = ".", Family = "family", Genus = "genus", Country = "cc")
 # Plot defaults ---------------------------------------------------------
 # Labs
 xlab <- c("Time (Ma)")
-# Theme
-custom_theme <- theme(legend.position = "none",
-                      legend.title = element_blank(),
-                      axis.text = element_text(colour = "black"),
-                      axis.title.x = element_text(),
-                      axis.line.x = element_line(),
-                      panel.grid = element_blank())
 
 # UI --------------------------------------------------------------------
 ui <- fluidPage(
@@ -43,48 +35,46 @@ ui <- fluidPage(
   tags$head(tags$style(HTML('* {font-family: "Arial"};'))),
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
-    
+
     # Sidebar panel for inputs ----
     sidebarPanel(width = 3,
-                 h3("Analyses"),
-                 
-                 # Input: Analyses type ----
-                 selectInput("type", "Type",
-                             c(Occurrences = "occurrences", Collections = "collections", 
-                               Taxa = "taxa", Range = "range"),
-                             selected = "occurrences"),
-                 # Input: Taxonomic rank ----
-                 selectInput("rank", "Taxonomic rank",
-                             c(Species = "species", Genus = "genus", Family = "family"), 
-                             selected = "genus"),
-                 # Input: Group by ----
-                 selectInput("group", "Group by",
-                             c(groups)),
-                 h3("Filter"),
-                 # Input: Select region ----
-                 selectInput("region", "Geographic region",
-                             c(regions),
-                             selected = "Caribbean"),
-                 # Input: Select family ----
-                 selectInput("family", "Family",
-                             c(All = ".", families),
-                             selected = "All"),
-                 # Input: Plot parameters ----
-                 h3("Plot"),
-                 sliderInput("point", "Point size",
-                             min = 0.1, max = 5,
-                             value = 1),
-                 sliderInput("line", "Line size",
-                             min = 0.1, max = 1.5,
-                             value = 0.5),
-                 sliderInput("label", "Label size",
-                             min = 0.1, max = 5,
-                             value = 1)
+
+      # Input: Analyses type ----
+      selectInput("type", "Type",
+                   c(Occurrences = "occurrences", Collections = "collections", 
+                     Taxa = "taxa", Range = "range"),
+                   selected = "occurrences"),
+      # Input: Taxonomic rank ----
+      selectInput("rank", "Taxonomic rank",
+                   c(Species = "species", Genus = "genus", Family = "family"), 
+                   selected = "genus"),
+      # Input: Group by ----
+      selectInput("group", "Group by",
+                  c(groups)),
+      # Input: Select region ----
+      selectInput("region", "Geographic region",
+                  c(regions),
+                  selected = "Caribbean"),
+      # Input: Select family ----
+      selectInput("family", "Family",
+                  c(All = ".", families),
+                  selected = "All"),
+      # Input: Plot parameters ----
+      sliderInput("point", "Point size",
+                  min = 0.1, max = 5,
+                  value = 1),
+      sliderInput("line", "Line size",
+                  min = 0.1, max = 1.5,
+                  value = 0.5),
+      sliderInput("label", "Label size",
+                  min = 0.1, max = 5,
+                  value = 1)
     ),
-    
+
     # Main panel for displaying outputs ----
-    mainPanel(width = 9
-              
+    mainPanel(width = 9,
+              plotOutput("plot")
+
     )
   )
 )
@@ -92,7 +82,33 @@ ui <- fluidPage(
 # Server ----------------------------------------------------------------
 server <- function(input, output) {
   # Reactive: Data filtering and analyses ----
-  
+  data <- reactive({
+    tmp <- df |>
+      filter_region(region = input$region) |>
+      filter_rank(rank = input$rank) |>
+      filter_family(fam = input$family) |>
+      group_data(group = input$group)
+    # Analyses
+    tmp <- lapply(names(tmp), function(x) {
+      out <- tmp[[x]]
+      if (input$type == "range") {
+        out <- get_temporal_ranges(df = out, rank = input$rank)
+      } else if (input$type == "occurrences") {
+        out <- get_occurrence_counts(df = out)
+      } else if (input$type == "collections") {
+        out <- get_collection_counts(df = out)
+      } else if (input$type == "taxa") {
+        out <- get_richness_counts(df = out, rank = input$rank)
+      }
+      out$group_id <- x
+      out
+    })
+    do.call(rbind.data.frame, tmp)
+  })
+  output$plot <- renderPlot({
+    out <- data()
+    plot(x = out$max_ma, y = out$min_ma)
+  })
 }
 # Create app ------------------------------------------------------------
 shinyApp(ui = ui, server = server)
