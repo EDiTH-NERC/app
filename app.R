@@ -8,6 +8,7 @@
 
 # Load libraries --------------------------------------------------------
 library(shiny)
+library(vegan)
 
 # Load functions --------------------------------------------------------
 source("R/utils.R")
@@ -42,10 +43,12 @@ ui <- fluidPage(
       # Input: Analyses type ----
       h3("Analyses"),
       radioButtons("type", "Select a type of analyses",
-                   c("Number of occurrences" = "occurrences", 
+                   c("Temporal ranges" = "range",
+                     "Number of occurrences" = "occurrences", 
                      "Number of collections" = "collections", 
-                     "Number of taxa" = "taxa", "Temporal ranges" = "range"),
-                   selected = "occurrences"),
+                     "Number of taxa" = "taxa",
+                     "Accummulation curve" = "accum"),
+                   selected = "range"),
       # Input: Taxonomic rank ----
       selectInput("rank", "Select a taxonomic rank",
                    c(Species = "species", Genus = "genus", Family = "family"), 
@@ -63,9 +66,6 @@ ui <- fluidPage(
                   c(groups)),
       h3("Plotting"),
       # Input: Plot parameters ----
-      sliderInput("point", "Select a point size",
-                  min = 0.1, max = 5,
-                  value = 1.25),
       sliderInput("line", "Select a line size",
                   min = 0.1, max = 5,
                   value = 1.25),
@@ -95,13 +95,15 @@ server <- function(input, output) {
     tmp <- lapply(names(tmp), function(x) {
       out <- tmp[[x]]
       if (input$type == "range") {
-        out <- get_temporal_ranges(df = out, rank = input$rank)
+        out <- out
       } else if (input$type == "occurrences") {
         out <- get_occurrence_counts(df = out)
       } else if (input$type == "collections") {
         out <- get_collection_counts(df = out)
       } else if (input$type == "taxa") {
         out <- get_richness_counts(df = out, rank = input$rank)
+      } else if (input$type == "accum") {
+        out <- out
       }
       out$group_id <- x
       out
@@ -115,49 +117,26 @@ server <- function(input, output) {
     point_size <- input$point
     line_size <- input$line
     label_size <- input$label
-    name_size <- label_size * 0.8
     xlim <- c(68, 0)
     # Set facets
     groups <- unique(out[, "group_id"])
     n <- ceiling(sqrt(length(groups)))
     par(mfrow = c(n, n), mar=c(5, 4, 4, 2))
-
+    
     for (i in groups) {
       out_df <- subset(out, group_id == i)
+      
+      if (input$type == "accum") {
+        get_specaccum(df = out_df, rank = input$rank, 
+                      label_size = label_size, line_size = line_size)
+      }
+      
       if (input$type == "range") {
-        out_df <- out_df[order(out_df$taxon, decreasing = TRUE), ]
-        out_df <- out_df[order(out_df$max_ma, decreasing = FALSE), ]
-        out_df$taxon_id <- 1:nrow(out_df)
+        get_temporal_ranges(df = out_df, rank = input$rank, 
+                            label_size = label_size, line_size = line_size)
+      }
         
-        # Plot parameters
-        ylim <- c(0, nrow(out_df) + 1)
-        
-        plot(x = NA, y = NA, xlim = xlim, ylim = ylim, 
-             yaxt = "n", axes = TRUE,
-             main = unique(out_df$group_id), xlab = "Time (Ma)", ylab = NA, 
-             cex.axis = label_size, cex.lab = label_size)
-        segments(x0 = out_df$max_ma, x1 = out_df$min_ma, y0 = out_df$taxon_id,
-                 col = 1, lty = 1, lwd = line_size)
-        points(x = out_df$max_ma, y = out_df$taxon_id,
-               pch = 20, col = "black", cex = point_size)
-        points(x = out_df$min_ma, y = out_df$taxon_id,
-               pch = 20, col = "black", cex = point_size)
-        text(x = (out_df$max_ma) + 0.5, y = out_df$taxon_id, 
-             labels = out_df$taxon,
-             adj = c(1, 0.5), cex = name_size)
-        rect(xleft = max(bins$max_ma) * 2, xright = max(bins$max_ma) * -2, 
-             ybottom = max(ylim) * -0.04, ytop = 0,
-             col = "grey80")
-        rect(xleft = bins$max_ma, xright = bins$min_ma, 
-             ybottom = max(ylim) * -0.04, ytop = 0,
-             col = bins$colour)
-        geo_size <- bins$duration_myr / max(bins$duration_myr) * (1.5 - strwidth(out_df$interva_name))
-        if (length(groups) == 1) {
-          text(x = bins$mid_ma, y = max(ylim) * -0.02, 
-               labels = bins$interval_name,
-               adj = c(0.5, 0.5), cex = geo_size)
-        }
-      } else {
+      if (any(input$type == c("occurrences", "collections", "taxa"))) {
         ylim <- c(0, max(out_df$value))
         plot(x = out_df$mid_ma, y = out_df$value, main = unique(out_df$group_id),
              xlab = "Time (Ma)", ylab = paste0("Number of ", input$type),

@@ -74,7 +74,11 @@ get_richness_counts <- function(df, rank) {
   }
   bins
 }
-get_temporal_ranges <- function (df, rank) {
+get_temporal_ranges <- function (df, rank, label_size = 1, line_size = 1) {
+  # Get bins
+  bins <- readRDS("data/stages.RDS")
+  # Get group name
+  group <- unique(df$group_id)
   # Get ranges counts
   out <- data.frame(taxon = unique(df[, rank]), max_ma = NA, min_ma = NA)
   for (i in 1:nrow(out)) {
@@ -83,7 +87,53 @@ get_temporal_ranges <- function (df, rank) {
     out$min_ma[i] <- min(df[vec, "min_ma"])
   }
   out$mid_ma <- (out$max_ma + out$min_ma) / 2
-  out
+  # Plotting
+  out <- out[order(out$taxon, decreasing = TRUE), ]
+  out <- out[order(out$max_ma, decreasing = FALSE), ]
+  out$taxon_id <- 1:nrow(out)
+  
+  # Plot parameters
+  ylim1 <- 0 - (nrow(out) * 0.08)
+  ylim1u <- 0 - (nrow(out) * 0.04)
+  ylim2 <- nrow(out) + (nrow(out) * 0.04)
+  ylim <- c(ylim1, ylim2)
+  xlim <- c(68, 0)
+  plot(x = NA, y = NA, xlim = xlim, ylim = ylim, 
+       yaxt = "n", yaxs = "i", axes = TRUE, main = group, xlab = "Time (Ma)", 
+       ylab = NA, cex.axis = label_size, cex.lab = label_size)
+  segments(x0 = out$max_ma, x1 = out$min_ma, y0 = out$taxon_id,
+           col = 1, lty = 1, lwd = line_size)
+  text(x = (out$max_ma) + 0.5, y = out$taxon_id, 
+       labels = out$taxon,
+       adj = c(1, 0.5), cex = label_size * 0.8)
+  rect(xleft = max(bins$max_ma) * 2, xright = max(bins$max_ma) * -2, 
+       ybottom = ylim1, ytop = ylim1u,
+       col = "grey80")
+  rect(xleft = bins$max_ma, xright = bins$min_ma, 
+       ybottom = ylim1, ytop = ylim1u,
+       col = bins$colour)
+  geo_size <- (bins$duration_myr / max(bins$duration_myr)) * (0.75 + label_size)
+  if (length(group) == 1) {
+    text(x = bins$mid_ma, y = (ylim1 + ylim1u) / 2, 
+         labels = bins$interval_name,
+         adj = c(0.5, 0.5), cex = geo_size)
+  }
+}
+
+get_specaccum <- function (df, rank, line_size = 1, label_size = 1) {
+  # Get group name
+  group <- unique(df$group_id)
+  # Create community matrix
+  comm_matrix <- table(df$collection_no, df[, rank])
+  # Get species dataframe
+  sp <- as.data.frame.matrix(comm_matrix)
+  # Get accummualtion curve
+  sp <- specaccum(comm_matrix)
+  # Plot accummulation curve
+  plot(sp, main = group, xlab = "Number of collections", ylab = "Number of taxa",
+       ci.type = "poly", col = "blue", lwd = line_size, 
+       ci.lty = 0, ci.col = "lightblue", 
+       cex.axis = label_size, cex.lab = label_size)
 }
 
 get_diversification_rates <- function () {}
