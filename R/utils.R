@@ -112,11 +112,14 @@ get_temporal_ranges <- function (df, rank, label_size = 1, line_size = 1) {
   rect(xleft = bins$max_ma, xright = bins$min_ma, 
        ybottom = ylim1, ytop = ylim1u,
        col = bins$colour)
-  geo_size <- (bins$duration_myr / max(bins$duration_myr)) * (0.75 + label_size)
+  # Label sizes
+  h <- par("pin")[2]
+  cex_scale <- (h / 4) * ((bins$duration_myr / max(bins$duration_myr))*0.7)
+  
   if (length(group) == 1) {
     text(x = bins$mid_ma, y = (ylim1 + ylim1u) / 2, 
          labels = bins$interval_name,
-         adj = c(0.5, 0.5), cex = geo_size)
+         adj = c(0.5, 0.5), cex = cex_scale)
   }
 }
 
