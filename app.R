@@ -138,7 +138,7 @@ server <- function(input, output) {
         ## geoscale
         ylim_lower_upper <- 0 - (nrow(out_df) * 0.04)
         cex_geo_scale <- (h / 4)
-        cex_geo_scale <- cex_geo_scale * ((bins$duration_myr / max(bins$duration_myr))*0.7)
+        cex_geo_scale <- cex_geo_scale * ((bins$duration_myr / max(bins$duration_myr))*0.5)
       
         # Plotting
         plot(x = NA, y = NA, xlim = xlim, ylim = ylim,
@@ -150,16 +150,31 @@ server <- function(input, output) {
              labels = out_df$taxon,
              adj = c(1, 0.5), cex = cex_taxon_scale)
         # Geological timescales
+        # Geological timescales
         rect(xleft = max(bins$max_ma) * 2, xright = max(bins$max_ma) * -2,
              ybottom = ylim_lower, ytop = ylim_lower_upper,
              col = "grey80")
         rect(xleft = bins$max_ma, xright = bins$min_ma,
              ybottom = ylim_lower, ytop = ylim_lower_upper,
              col = bins$colour)
-        ## Interval label size
+        ## Interval labels
+        ### Convert rect width to inches
+        user_width <- bins$min_ma - bins$max_ma
+        plot_width_in <- par("pin")[1]
+        xrange_user <- diff(par("usr")[1:2])
+        rect_width_in <- user_width * plot_width_in / xrange_user
+        
+        # Measure text width in inches at base cex
+        label <- bins$interval_name
+        cex_base <- 1
+        label_width_in <- strwidth(label, units = "inches", cex = cex_base)
+        
+        # Compute cex so that label fits the rectangle
+        cex_fit <- (cex_base * (rect_width_in / label_width_in)) * 0.7 
+        # Add labels
         text(x = bins$mid_ma, y = (ylim_lower + ylim_lower_upper) / 2,
-             labels = bins$interval_name,
-             adj = c(0.5, 0.5), cex = cex_geo_scale)
+             labels = label,
+             adj = c(0.5, 0.5), cex = cex_fit)
       }
         
       if (any(input$type == c("occurrences", "collections", "taxa"))) {
@@ -174,7 +189,7 @@ server <- function(input, output) {
         cex_taxon_scale <- (h / (10 + sqrt(nrow(out_df))))
         ## geoscale
         cex_geo_scale <- (h / 4)
-        cex_geo_scale <- cex_geo_scale * ((bins$duration_myr / max(bins$duration_myr))*0.7)
+        cex_geo_scale <- cex_geo_scale * ((bins$duration_myr / max(bins$duration_myr))*0.5)
       
         # Plot
         plot(x = out_df$mid_ma, y = out_df$value, main = unique(out_df$group_id),
@@ -194,10 +209,24 @@ server <- function(input, output) {
         rect(xleft = bins$max_ma, xright = bins$min_ma,
              ybottom = ylim_lower, ytop = 0,
              col = bins$colour)
-        ## Interval label size
+        ## Interval labels
+        ### Convert rect width to inches
+        user_width <- bins$min_ma - bins$max_ma
+        plot_width_in <- par("pin")[1]
+        xrange_user <- diff(par("usr")[1:2])
+        rect_width_in <- user_width * plot_width_in / xrange_user
+        
+        # Measure text width in inches at base cex
+        label <- bins$interval_name
+        cex_base <- 1
+        label_width_in <- strwidth(label, units = "inches", cex = cex_base)
+        
+        # Compute cex so that label fits the rectangle
+        cex_fit <- (cex_base * (rect_width_in / label_width_in)) * 0.7 
+        # Add labels
         text(x = bins$mid_ma, y = ylim_lower / 2,
-             labels = bins$interval_name,
-             adj = c(0.5, 0.5), cex = cex_geo_scale)
+             labels = label,
+             adj = c(0.5, 0.5), cex = cex_fit)
       }
     }
   })

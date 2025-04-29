@@ -1,5 +1,5 @@
 # To do
 
-- Work on functions
-- Dynamic sizing of labels
-- Dynamics ylim
+- Error handler
+- Update readme
+- Add html header? Favicon, website title, etc
