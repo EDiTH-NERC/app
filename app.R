@@ -9,6 +9,7 @@
 # Load libraries --------------------------------------------------------
 library(shiny)
 library(vegan)
+library(ggplot2)
 
 # Load functions --------------------------------------------------------
 source("R/utils.R")
@@ -21,10 +22,6 @@ bins <- readRDS("data/stages.RDS")
 families <- sort(unique(df$family))
 regions <- sort(unique(df$region))
 groups <- c(Ungrouped = ".", Family = "family", Genus = "genus", Country = "cc")
-
-# Plot defaults ---------------------------------------------------------
-# Labs
-xlab <- c("Time (Ma)")
 
 # UI --------------------------------------------------------------------
 ui <- fluidPage(
