@@ -9,7 +9,6 @@
 # Load libraries --------------------------------------------------------
 library(shiny)
 library(vegan)
-library(ggplot2)
 
 # Load functions --------------------------------------------------------
 source("R/utils.R")
